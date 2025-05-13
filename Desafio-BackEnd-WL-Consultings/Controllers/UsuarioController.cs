@@ -1,5 +1,11 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Desafio_BackEnd_WL_Consultings.Util;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Modelo.Domain.Entidades;
+using Modelo.Domain.Modelos;
+using Modelo.Domain.Modelos.FormValidation;
+using Modelo.Infra.Data.Desafio_BackEnd_WL_Consultings.Data;
+using System.Net;
 
 namespace Desafio_BackEnd_WL_Consultings.Controllers
 {
@@ -7,81 +13,116 @@ namespace Desafio_BackEnd_WL_Consultings.Controllers
     [Route("[controller]")]
     public class UsuarioController : Controller
     {
-        // GET: UsuarioController
-        //[HttpGet(Name = "Usuario")]
-        [HttpGet]
-        public ActionResult Index()
+        #region Context
+
+        private readonly ApplicationDbContext _context;
+
+
+        public UsuarioController(ApplicationDbContext context)
         {
-            return Ok();
+            _context = context;
         }
 
-        //// GET: UsuarioController/Details/5
-        //public ActionResult Details(int id)
-        //{
-        //    return Ok();
-        //}
+        #endregion
 
-        //// GET: UsuarioController/Create
-        //public ActionResult Create()
-        //{
-        //    return Ok();
-        //}
+        [HttpGet]
+        [Authorize]
+        public ActionResult Index()
+        {
+            var usuarios = _context.Usuarios.ToList();
+            return Ok(usuarios); 
+        }
 
-        //// POST: UsuarioController/Create
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //public ActionResult Create(IFormCollection collection)
-        //{
-        //    try
-        //    {
-        //        return RedirectToAction(nameof(Index));
-        //    }
-        //    catch
-        //    {
-        //        return Ok();
-        //    }
-        //}
+        [HttpGet("ConsultarSaldo")]
+        [Authorize]
+        public ActionResult ConsultarSaldo()
+        {
+            try
+            {
+                Usuario usuario = new();
+                var idUsuario = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+                if (idUsuario != null && Int32.Parse(idUsuario) > 0)
+                {
+                    usuario = _context.Usuarios.FirstOrDefault(u => u.Id == Int32.Parse(idUsuario));
+                    if (usuario != null)
+                        return Ok(usuario);
+                    else
+                        return BadRequest("Usuario não encontrado!");
+                }
+                else
+                    throw new Exception("Usuario Logado inválido!");
 
-        //// GET: UsuarioController/Edit/5
-        //public ActionResult Edit(int id)
-        //{
-        //    return Ok();
-        //}
+            }
+            catch (Exception ex)
+            {
 
-        //// POST: UsuarioController/Edit/5
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //public ActionResult Edit(int id, IFormCollection collection)
-        //{
-        //    try
-        //    {
-        //        return RedirectToAction(nameof(Index));
-        //    }
-        //    catch
-        //    {
-        //        return Ok();
-        //    }
-        //}
+                return StatusCode((int)HttpStatusCode.InternalServerError, new { erro = ex.Message });
+            }
+        }
+        [HttpPost("AdicionarSaldo")]
+        [Authorize]
+        public ActionResult AdicionarSaldo([FromBody] decimal valor)
+        {
+            try
+            {
+                if (valor <= 0)
+                    return BadRequest("Valor informado inválido!");
 
-        //// GET: UsuarioController/Delete/5
-        //public ActionResult Delete(int id)
-        //{
-        //    return Ok();
-        //}
+                var idUsuario = Int32.Parse(User.Claims.FirstOrDefault(c => c.Type == "id")?.Value);
+                
+                Usuario usuario = _context.Usuarios.FirstOrDefault(u => u.Id == idUsuario);
+                if (usuario != null)
+                {
+                    usuario.saldo += valor;
+                    _context.SaveChanges();
+                    return Ok("Saldo adicionado com Sucesso!!");
+                }
+                else
+                {
+                    return BadRequest("Usuario não encontrado!");
+                }
 
-        //// POST: UsuarioController/Delete/5
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //public ActionResult Delete(int id, IFormCollection collection)
-        //{
-        //    try
-        //    {
-        //        return RedirectToAction(nameof(Index));
-        //    }
-        //    catch
-        //    {
-        //        return Ok();
-        //    }
-        //}
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode((int)HttpStatusCode.InternalServerError, new { erro = ex.Message });
+            }
+        }
+
+
+        [HttpPost]
+        public ActionResult Create(CreateUsuario userData)
+        {
+            try
+            {
+                //Valida os dados do usuário
+                CreateUsuarioValidator.ValidarDados(userData);
+
+                if (_context.Usuarios.Any( u => u.numeroConta == userData.numeroConta))
+                {
+                    return BadRequest("Usuario com numero da Conta informado já existe!");
+                }
+
+                Usuario user = new Usuario
+                {
+                    Nome = userData.Name,
+                    numeroConta = userData.numeroConta,
+                    senha = HashSenha.GerarHashMd5(userData.senha),
+                    saldo = userData.saldo
+                };
+
+                _context.Usuarios.Add(user);
+                _context.SaveChanges();
+                
+                return RedirectToAction(nameof(Index));
+            }
+            catch(Exception ex)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, new {erro= ex.Message});
+            }
+        }
+
     }
+
 }
