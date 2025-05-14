@@ -4,6 +4,7 @@ Esta API foi desenvolvida em ASP.NET Core (.NET 9) e tem como objetivo gerenciar
 Foi aplicada o suporte ao Swagger, portanto poderá escolher a forma de autenticação e\ou requisições por meio de clientes http como o postman, ou utilizar a propria interface grafica gerada se preferir, a qual facilita a persistencia do `Token` gerado  pela autenticação entre as requisições e no preenchimento dos dados a serem enviados em requisições posteriores.   
 A autenticação é feita via JWT retornando o token a ser utilizado nas demais rotas.  
   
+![image](https://github.com/user-attachments/assets/488f3f67-0d74-46f3-97e8-a9c6f93ea24d)
 
 
 
